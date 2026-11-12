@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dref.dev/schemas/v1/domain.json",
+  "title": "DRef Domain Document",
+  "description": "The primary DRef artifact. Defines a bounded business domain: its name, conventions, the scopes that group its models, and the models themselves.",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-friendly domain name."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this domain document."
+    },
+    "description": {
+      "type": "string"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Domain-wide conventions. Extensible: future global properties are added as siblings of 'formats'.",
+      "additionalProperties": true,
+      "properties": {
+        "formats": {
+          "type": "object",
+          "description": "Format conventions for the Date, Time, and DateTime field types across all models in this domain. Each slot is a dref token pattern (YYYY MM DD HH mm ss), the named form 'iso8601' (that value kind's ISO-8601 representation), or the named epoch forms 'epoch' (Unix seconds) and 'epochMillis' (Unix milliseconds) whose values are whole numbers rather than strings.",
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "type": "string",
+              "examples": ["YYYY-MM-DD", "iso8601"]
+            },
+            "time": {
+              "type": "string",
+              "examples": ["HH:mm:ss", "iso8601"]
+            },
+            "dateTime": {
+              "type": "string",
+              "examples": ["YYYY-MM-DDTHH:mm:ssZ", "iso8601", "epochMillis"]
+            }
+          }
+        },
+        "fields": {
+          "type": "object",
+          "description": "Domain field types: named, reusable field definitions referenced from a property's 'type' (e.g. 'orderStatus'). A field type expands to its base builtin type, list flag and rules; rules declared on the property compose additively after the field type's own. Names are plain identifiers (no '#' prefix — that space is reserved for model references) and must not shadow a builtin.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["type"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "enum": ["String", "Number", "Integer", "Boolean", "Date", "DateTime", "Time"]
+                  },
+                  {
+                    "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+                  }
+                ],
+                "description": "Base builtin field type or another declared domain field type."
+              },
+              "list": {
+                "type": "boolean"
+              },
+              "rules": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/rule"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "description": "Named groups (by bounded context or subdomain) that models may optionally reference. Scopes do not contain models.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$",
+            "description": "Lowercase kebab-case scope identifier."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "array",
+      "description": "The domain's DRef models, siblings of 'scopes'. Each model may reference a scope by name; a model without a scope lives directly in the domain.",
+      "items": {
+        "type": "object",
+        "required": ["name", "properties"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Z][a-zA-Z0-9_]*$"
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$",
+            "description": "Optional reference to one of the domain's scopes by name. Not mandatory."
+          },
+          "authority": {
+            "enum": ["client", "internal", "external"],
+            "description": "Model-level authority: the originating source of truth / owner of the record. Defaults to internal when omitted; properties without their own authority inherit it."
+          },
+          "ttl": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*[smhdMy]$",
+            "description": "Retention duration as integer + unit (s, m, h, d, M, y). Omitted ttl is lifecycle-manager-determined (persistent by default) and not modelled in DRef."
+          },
+          "count": {
+            "type": "object",
+            "description": "Inclusive instance-count range. Either bound optional; min defaults to 0 when omitted; an absent count means unbounded.",
+            "additionalProperties": false,
+            "properties": {
+              "min": {
+                "type": "number",
+                "minimum": 0,
+                "default": 0
+              },
+              "max": {
+                "type": "number"
+              }
+            }
+          },
+          "mapsFrom": {
+            "type": "array",
+            "description": "Incoming mapping definitions describing how foreign payloads can be mapped onto this model.",
+            "items": {
+              "type": "object",
+              "required": ["name", "fields"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Source model name as presented by the provider."
+                },
+                "provider": {
+                  "type": "string",
+                  "description": "Origin system, e.g. 'Stripe'."
+                },
+                "version": {
+                  "type": "string",
+                  "description": "Semantic version of the source model or its API."
+                },
+                "description": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "description": "Field mappings. A bare string copies that field 1:1 onto a same-named target property. An object requires 'from' (a source field, or an array of source fields whose present values feed the transform chain) and may rename the target with 'to' and reshape the value with a transform chain.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Source field copied 1:1 onto a same-named target property."
+                      },
+                      {
+                        "type": "object",
+                        "required": ["from"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "from": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "description": "Source field in the incoming payload."
+                              },
+                              {
+                                "type": "array",
+                                "items": { "type": "string" },
+                                "minItems": 1,
+                                "description": "Multiple source fields: the transform chain starts from the array of their present values (absent/null sources skipped; null when none is present). 'to' is required."
+                              }
+                            ]
+                          },
+                          "to": {
+                            "type": "string",
+                            "description": "Target property name. Defaults to 'from' (1:1 copy) when omitted; required for a multi-field 'from'."
+                          },
+                          "transform": {
+                            "type": "array",
+                            "description": "Transform chain applied left to right. Bare strings stand for parameterless transforms, objects carry the type and a param.",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lowerCase", "upperCase", "trim",
+                                    "abs", "round",
+                                    "toNumber", "toString", "toBoolean"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "required": ["type"],
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "param": {}
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "allOf": [
+                          {
+                            "description": "A multi-field 'from' has no same-named target to default to, so 'to' is required.",
+                            "if": {
+                              "properties": {
+                                "from": { "type": "array" }
+                              }
+                            },
+                            "then": {
+                              "required": ["to"]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "enum": ["String", "Number", "Integer", "Boolean", "Date", "DateTime", "Time"]
+                    },
+                    {
+                      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+                    },
+                    {
+                      "pattern": "^#[A-Z][a-zA-Z0-9_]*$"
+                    }
+                  ],
+                  "description": "Builtin field type (String, Number, Integer, Boolean, Date, DateTime, Time), a domain field type declared under defaults.fields, or a model reference '#Model' linking to another model's key property."
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "key": {
+                  "type": "boolean"
+                },
+                "list": {
+                  "type": "boolean"
+                },
+                "authority": {
+                  "type": "string",
+                  "enum": ["client", "internal", "external"],
+                  "description": "Principal permitted to set this property's value: 'client' (end users / frontend apps), 'internal' (core backend logic), 'external' (third-party ingest or sync). Omitted properties inherit the model-level authority."
+                },
+                "description": {
+                  "type": "string"
+                },
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/rule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "rule": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "param": {
+          "description": "The rule's parameter. A string of the form '$fieldName' is a cross-field reference resolved against the named sibling property's value during instance validation (skipped when that sibling is unset); see the specification's parameterReferences."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warn"],
+          "description": "Whether a failure of this rule blocks. 'warn' demotes the failure to a non-blocking warning, which never fails validation; omitted or 'error' means blocking. Mirrors regl's per-rule severity."
+        }
+      }
+    }
+  }
+}

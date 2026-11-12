@@ -1,0 +1,640 @@
+{
+  "$schema": "https://dref.dev/schemas/v1/domain.json",
+  "name": "Inventory",
+  "version": "1.0.0",
+  "description": "Inventory management: product catalog, supplier relationships, warehouses, on-hand stock levels, perpetual stock movements, and purchase orders.",
+  "defaults": {
+    "formats": {
+      "date": "YYYY-MM-DD",
+      "time": "HH:mm:ss",
+      "dateTime": "YYYY-MM-DDTHH:mm:ssZ"
+    }
+  },
+  "scopes": [
+    {
+      "name": "catalog",
+      "description": "Products, suppliers, and the reference data that feeds replenishment."
+    },
+    {
+      "name": "stock",
+      "description": "Warehouses, on-hand stock levels, perpetual movements, and purchase orders."
+    }
+  ],
+  "models": [
+    {
+      "name": "Product",
+      "scope": "catalog",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Inventory item identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "itm_"
+            }]
+        },
+        {
+          "name": "sku",
+          "type": "String",
+          "required": true,
+          "description": "Stock-keeping unit code.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "uppercase"
+            },
+            {
+              "type": "pattern",
+              "param": "^[A-Z0-9_-]+$"
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Display name of the item.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 200
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "Long-form description of the item.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 5000
+            }
+          ]
+        },
+        {
+          "name": "unit",
+          "type": "String",
+          "required": true,
+          "description": "Base unit of measure for stock quantities.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "unit",
+                "kg",
+                "liter",
+                "meter",
+                "box"
+              ]
+            },
+            {
+              "type": "lowercase"
+            }
+          ]
+        },
+        {
+          "name": "reorderPoint",
+          "type": "Integer",
+          "required": false,
+          "description": "Stock level at which replenishment is triggered.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the item is still procured and stocked."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Supplier",
+      "scope": "catalog",
+      "authority": "external",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Supplier identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "sup_"
+            }]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Legal or trading name of the supplier.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 200
+            }
+          ]
+        },
+        {
+          "name": "contactEmail",
+          "type": "String",
+          "required": false,
+          "description": "Primary procurement contact email.",
+          "rules": [
+            {
+              "type": "email"
+            },
+            {
+              "type": "lowercase"
+            },
+            {
+              "type": "trimmed"
+            }
+          ]
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": false,
+          "description": "Primary procurement contact phone number.",
+          "rules": [
+            {
+              "type": "pattern",
+              "param": "^\\+?[0-9]{7,15}$"
+            },
+            {
+              "type": "trimmed"
+            }
+          ]
+        },
+        {
+          "name": "leadTimeDays",
+          "type": "Number",
+          "required": false,
+          "description": "Average delivery lead time in days.",
+          "rules": [
+            {
+              "type": "positiveInteger"
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the supplier is still used for procurement."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Warehouse",
+      "scope": "stock",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Warehouse identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "wh_"
+            }]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Display name of the warehouse.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 200
+            }
+          ]
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "required": true,
+          "description": "Short operational code for the warehouse.",
+          "rules": [
+            {
+              "type": "uppercase"
+            },
+            {
+              "type": "pattern",
+              "param": "^[A-Z0-9]{2,8}$"
+            }
+          ]
+        },
+        {
+          "name": "location",
+          "type": "String",
+          "required": false,
+          "description": "Physical address of the warehouse.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 300
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the warehouse is accepting stock."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "StockLevel",
+      "scope": "stock",
+      "authority": "internal",
+      "mapsFrom": [
+        {
+          "name": "WMS Stock Level",
+          "provider": "WarehouseOS",
+          "version": "1.2.0",
+          "description": "Maps a WarehouseOS inventory snapshot onto this stock level.",
+          "fields": [
+            {
+              "from": "item_id",
+              "to": "productId"
+            },
+            {
+              "from": "location_code",
+              "to": "warehouseId",
+              "transform": [
+                {
+                  "type": "prefix",
+                  "param": "wh_"
+                }
+              ]
+            },
+            {
+              "from": "on_hand",
+              "to": "quantityOnHand",
+              "transform": [
+                "toNumber"
+              ]
+            },
+            {
+              "from": "reserved",
+              "to": "quantityReserved",
+              "transform": [
+                "toNumber"
+              ]
+            },
+            {
+              "from": "reorder_point",
+              "to": "reorderPoint",
+              "transform": [
+                "toNumber"
+              ]
+            },
+            {
+              "from": "last_updated",
+              "to": "updatedAt",
+              "transform": [
+                {
+                  "type": "formatDate",
+                  "param": "unix"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Stock level identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "sl_"
+            }]
+        },
+        {
+          "name": "productId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the stocked item.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "itm_"
+            }
+          ]
+        },
+        {
+          "name": "warehouseId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the warehouse holding the stock.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "wh_"
+            }
+          ]
+        },
+        {
+          "name": "quantityOnHand",
+          "type": "Integer",
+          "required": true,
+          "description": "Physical units currently on the shelf.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "quantityReserved",
+          "type": "Integer",
+          "required": false,
+          "description": "Units committed to open orders and not available for sale.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "reorderPoint",
+          "type": "Integer",
+          "required": false,
+          "description": "Level below which replenishment is triggered for this item/warehouse.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Timestamp of the last stock snapshot."
+        }
+      ]
+    },
+    {
+      "name": "StockMovement",
+      "scope": "stock",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Stock movement identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "mv_"
+            }]
+        },
+        {
+          "name": "productId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the item moved.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "itm_"
+            }]
+        },
+        {
+          "name": "warehouseId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the warehouse the movement belongs to.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "wh_"
+            }]
+        },
+        {
+          "name": "quantity",
+          "type": "Number",
+          "required": true,
+          "description": "Magnitude of units moved (direction implied by movementType).",
+          "rules": [
+            {
+              "type": "positiveInteger"
+            }]
+        },
+        {
+          "name": "movementType",
+          "type": "String",
+          "required": true,
+          "description": "Kind of stock movement recorded.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "received",
+                "sold",
+                "transfer_in",
+                "transfer_out",
+                "adjustment",
+                "return"
+              ]
+            }]
+        },
+        {
+          "name": "reference",
+          "type": "String",
+          "required": false,
+          "description": "Link to the originating document (e.g. order or purchase order identifier).",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 100
+            }]
+        },
+        {
+          "name": "note",
+          "type": "String",
+          "required": false,
+          "description": "Free-text note explaining the movement.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 500
+            }]
+        },
+        {
+          "name": "occurredAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Timestamp at which the movement happened."
+          
+        }
+      ]
+    },
+    {
+      "name": "PurchaseOrder",
+      "scope": "stock",
+      "authority": "external",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Purchase order identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "po_"
+            }]
+        },
+        {
+          "name": "supplierId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the supplier the order is placed with.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "sup_"
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": true,
+          "description": "Procurement lifecycle state of the order.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "draft",
+                "placed",
+                "received",
+                "cancelled"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "itemCount",
+          "type": "Integer",
+          "required": false,
+          "description": "Number of distinct line items on the order.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "totalQuantity",
+          "type": "Integer",
+          "required": false,
+          "description": "Total units expected across all line items.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "expectedDeliveryAt",
+          "type": "Date",
+          "required": false,
+          "description": "Promised delivery date from the supplier."
+        },
+        {
+          "name": "placedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "Timestamp the order was placed with the supplier."
+        },
+        {
+          "name": "receivedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "Timestamp the order was fully received."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Last state-change timestamp."
+        }
+      ]
+    }
+  ]
+}

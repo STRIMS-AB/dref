@@ -1,0 +1,17 @@
+# Build output
+target/
+dist/
+build/
+node_modules/
+*.tsbuildinfo
+
+# Test output
+test-results/
+playwright-report/
+
+# Editors and system
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.local

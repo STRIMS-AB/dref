@@ -1,0 +1,610 @@
+{
+  "$schema": "https://dref.dev/schemas/v1/domain.json",
+  "name": "Commerce",
+  "version": "1.0.0",
+  "description": "Core e-commerce concepts: customers, product catalog, orders, line items, and payment intents.",
+  "defaults": {
+    "formats": {
+      "date": "YYYY-MM-DD",
+      "time": "HH:mm:ss",
+      "dateTime": "YYYY-MM-DDTHH:mm:ssZ"
+    }
+  },
+  "scopes": [
+    {
+      "name": "catalog",
+      "description": "Customer-facing product catalog and account entities."
+    },
+    {
+      "name": "orders",
+      "description": "Order processing, line items, and payment intents."
+    }
+  ],
+  "models": [
+    {
+      "name": "Customer",
+      "scope": "catalog",
+      "authority": "client",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Customer identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "cus_"
+            }]
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "required": true,
+          "description": "Primary contact email.",
+          "rules": [
+            {
+              "type": "email"
+            },
+            {
+              "type": "lowercase"
+            },
+            {
+              "type": "trimmed"
+            }
+          ]
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "required": true,
+          "description": "Customer's given name.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 100
+            }
+          ]
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "required": true,
+          "description": "Customer's family name.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 100
+            }
+          ]
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": false,
+          "description": "Optional contact phone number.",
+          "rules": [
+            {
+              "type": "pattern",
+              "param": "^\\+?[0-9]{7,15}$"
+            },
+            {
+              "type": "trimmed"
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the customer is enabled."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Last update timestamp."
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "scope": "catalog",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Product identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "prod_"
+            }]
+        },
+        {
+          "name": "sku",
+          "type": "String",
+          "required": false,
+          "description": "Stock-keeping unit code.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "uppercase"
+            },
+            {
+              "type": "pattern",
+              "param": "^[A-Z0-9_-]+$"
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Display name of the product.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 200
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "Long-form product description.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 5000
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "type": "Number",
+          "required": true,
+          "description": "Unit price in the smallest meaningful unit of currency.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "required": true,
+          "description": "ISO-4217 currency code.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "USD",
+                "EUR",
+                "GBP",
+                "CHF"
+              ]
+            },
+            {
+              "type": "uppercase"
+            }
+          ]
+        },
+        {
+          "name": "stock",
+          "type": "Integer",
+          "required": false,
+          "description": "Available stock quantity.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the product is sellable."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "scope": "orders",
+      "authority": "client",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Order identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "ord_"
+            }]
+        },
+        {
+          "name": "customerId",
+          "type": "#Customer",
+          "required": true,
+          "description": "Reference to the owning customer (model reference to Customer.id).",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "cus_"
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": true,
+          "description": "Fulfilment state of the order.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "pending",
+                "paid",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "refunded"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "required": true,
+          "description": "ISO-4217 currency code for the order.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "USD",
+                "EUR",
+                "GBP",
+                "CHF"
+              ]
+            },
+            {
+              "type": "uppercase"
+            }
+          ]
+        },
+        {
+          "name": "totalAmount",
+          "type": "Number",
+          "required": true,
+          "description": "Order grand total.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }
+          ]
+        },
+        {
+          "name": "itemsCount",
+          "type": "Integer",
+          "required": false,
+          "description": "Number of distinct line items.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            }
+          ]
+        },
+        {
+          "name": "couponCode",
+          "type": "String",
+          "required": false,
+          "description": "Applied discount code.",
+          "rules": [
+            {
+              "type": "trimmed"
+            },
+            {
+              "type": "maxLength",
+              "param": 50
+            }
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Placement timestamp."
+          
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Last state-change timestamp."
+        }
+      ]
+    },
+    {
+      "name": "OrderItem",
+      "scope": "orders",
+      "authority": "client",
+      "properties": [
+        {
+          "name": "orderId",
+          "type": "#Order",
+          "required": true,
+          "key": true,
+          "description": "Reference to the parent order (model reference to Order.id).",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "ord_"
+            }]
+        },
+        {
+          "name": "productId",
+          "type": "#Product",
+          "required": true,
+          "description": "Reference to the purchased product (model reference to Product.id).",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "prod_"
+            }]
+        },
+        {
+          "name": "quantity",
+          "type": "Number",
+          "required": true,
+          "description": "Purchased quantity.",
+          "rules": [
+            {
+              "type": "positiveInteger"
+            }]
+        },
+        {
+          "name": "unitPrice",
+          "type": "Number",
+          "required": true,
+          "description": "Unit price as snapshotted at purchase time.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }]
+        },
+        {
+          "name": "lineTotal",
+          "type": "Number",
+          "required": true,
+          "description": "quantity * unitPrice, snapshotted.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }]
+        }
+      ]
+    },
+    {
+      "name": "PaymentIntent",
+      "scope": "orders",
+      "authority": "internal",
+      "mapsFrom": [
+        {
+          "name": "Stripe PaymentIntent",
+          "provider": "Stripe",
+          "version": "1.0.0",
+          "description": "Maps a Stripe PaymentIntent API object onto this model.",
+          "fields": [
+            "id",
+            "status",
+            {
+              "from": "order_id",
+              "to": "orderId"
+            },
+            {
+              "from": "payment_method",
+              "to": "paymentMethodId"
+            },
+            {
+              "from": "amount",
+              "transform": [
+                {
+                  "type": "divide",
+                  "param": 100
+                }
+              ]
+            },
+            {
+              "from": "currency",
+              "transform": [
+                "upperCase"
+              ]
+            },
+            {
+              "from": "description",
+              "transform": [
+                "trim"
+              ]
+            },
+            {
+              "from": "created",
+              "to": "createdAt",
+              "transform": [
+                {
+                  "type": "formatDate",
+                  "param": "unix"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Payment intent identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "pi_"
+            }]
+        },
+        {
+          "name": "orderId",
+          "type": "#Order",
+          "required": true,
+          "key": true,
+          "description": "Reference to the order being paid (model reference to Order.id).",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "ord_"
+            }
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "Number",
+          "required": true,
+          "description": "Amount to charge.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "required": true,
+          "description": "ISO-4217 currency code.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "USD",
+                "EUR",
+                "GBP",
+                "CHF"
+              ]
+            },
+            {
+              "type": "uppercase"
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": true,
+          "description": "Lifecycle state of the payment.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "requires_payment_method",
+                "requires_confirmation",
+                "processing",
+                "succeeded",
+                "canceled"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "paymentMethodId",
+          "type": "String",
+          "required": false,
+          "description": "Reference to the used payment method.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "pm_"
+            }
+          ]
+        },
+        {
+          "name": "failureMessage",
+          "type": "String",
+          "required": false,
+          "description": "Human-readable failure reason, if any.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 255
+            }
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    }
+  ]
+}

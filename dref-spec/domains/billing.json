@@ -1,0 +1,495 @@
+{
+  "$schema": "https://dref.dev/schemas/v1/domain.json",
+  "name": "Billing & Subscriptions",
+  "version": "1.0.0",
+  "description": "Monetization concepts: pricing plans, subscriptions, invoices, and stored payment methods.",
+  "defaults": {
+    "formats": {
+      "date": "YYYY-MM-DD",
+      "time": "HH:mm:ss",
+      "dateTime": "YYYY-MM-DDTHH:mm:ssZ"
+    }
+  },
+  "scopes": [
+    {
+      "name": "subscriptions",
+      "description": "Plans, subscriptions, invoices, and payment methods."
+    }
+  ],
+  "models": [
+    {
+      "name": "Plan",
+      "scope": "subscriptions",
+      "authority": "internal",
+      "count": {
+        "min": 1,
+        "max": 20
+      },
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Plan identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "plan_"
+            }]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Display name of the plan.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 100
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "Sales-facing plan description.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 255
+            }
+          ]
+        },
+        {
+          "name": "priceAmount",
+          "type": "Number",
+          "required": true,
+          "description": "Recurring price per interval.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "required": true,
+          "description": "ISO-4217 currency code.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "USD",
+                "EUR",
+                "GBP",
+                "CHF"
+              ]
+            },
+            {
+              "type": "uppercase"
+            }
+          ]
+        },
+        {
+          "name": "billingInterval",
+          "type": "String",
+          "required": true,
+          "description": "Recurrence period.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "week",
+                "month",
+                "year"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "trialDays",
+          "type": "Integer",
+          "required": false,
+          "description": "Free trial length in days, if offered.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 0
+            },
+            {
+              "type": "lessThanOrEqual",
+              "param": 365
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the plan can be subscribed to."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Subscription",
+      "scope": "subscriptions",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Subscription identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "sub_"
+            }]
+        },
+        {
+          "name": "accountId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the billing account.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "acct_"
+            }
+          ]
+        },
+        {
+          "name": "planId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the subscribed plan.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "plan_"
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": true,
+          "description": "Billing lifecycle state.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "trialing",
+                "active",
+                "past_due",
+                "canceled",
+                "expired"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "currentPeriodStart",
+          "type": "DateTime",
+          "required": true,
+          "description": "Start of the current billing period."
+        },
+        {
+          "name": "currentPeriodEnd",
+          "type": "DateTime",
+          "required": true,
+          "description": "End of the current billing period."
+        },
+        {
+          "name": "cancelAtPeriodEnd",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the subscription cancels at the current period end."
+        },
+        {
+          "name": "trialEnd",
+          "type": "Date",
+          "required": false,
+          "description": "Optional trial completion date."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Invoice",
+      "scope": "subscriptions",
+      "authority": "internal",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Invoice identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "in_"
+            }]
+        },
+        {
+          "name": "accountId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the billing account.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "acct_"
+            }
+          ]
+        },
+        {
+          "name": "subscriptionId",
+          "type": "String",
+          "required": false,
+          "description": "Reference to the originating subscription, if any.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "sub_"
+            }
+          ]
+        },
+        {
+          "name": "number",
+          "type": "String",
+          "required": true,
+          "description": "Human-friendly sequential invoice number.",
+          "rules": [
+            {
+              "type": "uppercase"
+            },
+            {
+              "type": "startsWith",
+              "param": "INV-"
+            },
+            {
+              "type": "pattern",
+              "param": "^INV-[0-9]+$"
+            }
+          ]
+        },
+        {
+          "name": "totalAmount",
+          "type": "Number",
+          "required": true,
+          "description": "Invoice grand total.",
+          "rules": [
+            {
+              "type": "positive"
+            },
+            {
+              "type": "precision",
+              "param": 2
+            }
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "required": true,
+          "description": "ISO-4217 currency code.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "USD",
+                "EUR",
+                "GBP",
+                "CHF"
+              ]
+            },
+            {
+              "type": "uppercase"
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": true,
+          "description": "Payment state of the invoice.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "draft",
+                "open",
+                "paid",
+                "void",
+                "uncollectible"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "dueDate",
+          "type": "Date",
+          "required": true,
+          "description": "Date by which payment is expected."
+        },
+        {
+          "name": "paidAt",
+          "type": "Date",
+          "required": false,
+          "description": "Date the invoice was settled."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "PaymentMethod",
+      "scope": "subscriptions",
+      "authority": "client",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Payment method identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "pm_"
+            }]
+        },
+        {
+          "name": "accountId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the owning billing account.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "acct_"
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "required": true,
+          "description": "Payment instrument category.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "card",
+                "bank_transfer",
+                "paypal",
+                "apple_pay"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "brand",
+          "type": "String",
+          "required": false,
+          "description": "Card network brand, when type is card.",
+          "rules": [
+            {
+              "type": "enum",
+              "param": [
+                "visa",
+                "mastercard",
+                "amex",
+                "unknown"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "last4",
+          "type": "String",
+          "required": false,
+          "description": "Last four digits of the card number.",
+          "rules": [
+            {
+              "type": "pattern",
+              "param": "^[0-9]{4}$"
+            }
+          ]
+        },
+        {
+          "name": "expMonth",
+          "type": "Integer",
+          "required": false,
+          "description": "Card expiry month (1-12).",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 1
+            },
+            {
+              "type": "lessThanOrEqual",
+              "param": 12
+            }
+          ]
+        },
+        {
+          "name": "expYear",
+          "type": "Integer",
+          "required": false,
+          "description": "Card expiry year.",
+          "rules": [
+            {
+              "type": "greaterThanOrEqual",
+              "param": 2026
+            }
+          ]
+        },
+        {
+          "name": "isDefault",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether this is the default method for the account."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    }
+  ]
+}

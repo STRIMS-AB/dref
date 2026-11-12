@@ -1,0 +1,29 @@
+{
+  "name": "@dref/validator",
+  "version": "0.1.0",
+  "description": "Universal DRef Domain Model & Validation Library for TypeScript & UI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "dref",
+    "validation",
+    "domain-model",
+    "schema"
+  ],
+  "author": "STRIMS AB <dev@strims.com> (https://strims.se)",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/STRIMS-AB/dref.git",
+    "directory": "dref-ts"
+  },
+  "homepage": "https://dref.dev"
+}

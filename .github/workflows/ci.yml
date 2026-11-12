@@ -1,0 +1,51 @@
+name: CI
+
+# Every push: the Java validator (it needs dev.regl:regl-java from Maven Central), then the
+# TypeScript validator, the React composer, and the example domain documents of the
+# specification checked with the validator.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  dref-java:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: [ '17', '21' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+          cache: maven
+
+      - name: Build and test
+        working-directory: dref-java
+        run: mvn -B verify
+
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: dref-ts
+        working-directory: dref-ts
+        run: npm ci && npm run build && npm test
+
+      - name: dref-react
+        working-directory: dref-react
+        run: npm ci && npm run build && npm test
+
+      - name: dref-spec
+        working-directory: dref-spec
+        run: npm ci && npm run validate

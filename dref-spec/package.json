@@ -1,0 +1,15 @@
+{
+  "name": "dref-spec",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The DRef specification: its schema, its transformation catalog and example domain documents",
+  "license": "Apache-2.0",
+  "scripts": {
+    "validate": "node scripts/validate.mjs"
+  },
+  "devDependencies": {
+    "@dref/validator": "file:../dref-ts",
+    "ajv": "^6.12.6"
+  }
+}

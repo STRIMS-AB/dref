@@ -1,0 +1,500 @@
+{
+  "$schema": "https://dref.dev/schemas/v1/specification.json",
+  "version": "1.0.0",
+  "title": "DRef Specification",
+  "description": "Universal domain definition, validation, and mapping specification",
+  "domain": {
+    "description": "A Domain Document is the primary artifact in DRef. It defines a bounded business domain: its name, conventions, the scopes that group its models, and the models themselves.",
+    "attributes": {
+      "name": {
+        "type": "string",
+        "required": true,
+        "description": "Human-friendly domain name (e.g. 'Commerce', 'Identity & Access')."
+      },
+      "version": {
+        "type": "string",
+        "required": false,
+        "description": "Semantic version of this domain document."
+      },
+      "description": {
+        "type": "string",
+        "required": false,
+        "description": "Short description of the domain."
+      },
+      "defaults": {
+        "type": "object",
+        "required": false,
+        "description": "Domain-wide conventions. Extensible: future global properties are added as siblings of 'formats'.",
+        "properties": {
+          "formats": {
+            "type": "object",
+            "required": false,
+            "description": "Format conventions for the Date, Time, and DateTime field types across all models in this domain. Each slot is a dref token pattern (YYYY MM DD HH mm ss), the named form 'iso8601' (that value kind's ISO-8601 representation), or the named epoch forms 'epoch' (Unix seconds) and 'epochMillis' (Unix milliseconds) whose values are whole numbers rather than strings.",
+            "properties": {
+              "date": {
+                "type": "string",
+                "examples": [
+                  "YYYY-MM-DD",
+                  "iso8601"
+                ]
+              },
+              "time": {
+                "type": "string",
+                "examples": [
+                  "HH:mm:ss",
+                  "iso8601"
+                ]
+              },
+              "dateTime": {
+                "type": "string",
+                "examples": [
+                  "YYYY-MM-DDTHH:mm:ssZ",
+                  "iso8601",
+                  "epochMillis"
+                ]
+              }
+            }
+          },
+          "fields": {
+            "type": "object",
+            "required": false,
+            "description": "Domain field types: named, reusable field definitions referenced from a property's 'type'. Each binds a base builtin field type (or another declared field type, never cyclically), an optional list flag, and optional rules. A property referencing a field type expands to its base builtin type plus the field type's list flag and rules; the property's own rules compose after them.",
+            "properties": {
+              "type": {
+                "type": "string",
+                "required": true,
+                "description": "Base builtin field type (String, Number, Boolean, Date, DateTime, Time) or another declared field type."
+              },
+              "list": {
+                "type": "boolean",
+                "required": false,
+                "description": "When true, every property referencing this field type is a list."
+              },
+              "rules": {
+                "type": "array",
+                "required": false,
+                "description": "Rule catalog entries applied to every property referencing this field type."
+              }
+            }
+          }
+        }
+      },
+      "scopes": {
+        "type": "array",
+        "required": false,
+        "description": "Named groups (e.g. by bounded context or subdomain) that models may optionally reference. A domain may have zero scopes; models without a scope live directly in the domain."
+      },
+      "models": {
+        "type": "array",
+        "required": false,
+        "description": "The domain's DRef models, declared as siblings of 'scopes'. Each model may reference a scope by name ('scope'), but it is not mandatory."
+      }
+    }
+  },
+  "scope": {
+    "description": "A Scope is a named group within a domain (e.g. by bounded context or subdomain) that models may optionally reference by name. Scopes do not contain models directly — models are declared on the domain and point at their scope.",
+    "attributes": {
+      "name": {
+        "type": "string",
+        "required": true,
+        "pattern": "^[a-z0-9_-]+$",
+        "description": "Lowercase kebab-case scope identifier."
+      },
+      "description": {
+        "type": "string",
+        "required": false,
+        "description": "Short description of this scope's purpose."
+      }
+    }
+  },
+  "model": {
+    "description": "A Model represents a discrete domain concept (e.g. Customer, PaymentIntent). Models are declared at the domain document level; they may optionally reference one of the domain's scopes by name.",
+    "attributes": {
+      "name": {
+        "type": "string",
+        "required": true,
+        "pattern": "^[A-Z][a-zA-Z0-9_]*$",
+        "description": "PascalCase alphanumeric model identifier, unique within the domain."
+      },
+      "scope": {
+        "type": "string",
+        "required": false,
+        "pattern": "^[a-z0-9_-]+$",
+        "description": "Optional reference to one of the domain's scopes by name. Not mandatory — a model without a scope lives directly in the domain."
+      },
+      "authority": {
+        "type": "enum",
+        "required": false,
+        "options": [
+          "client",
+          "internal",
+          "external"
+        ],
+        "default": "internal",
+        "description": "Model-level authority: the originating source of truth / owner of the record. Defaults to internal when omitted. Ownership metadata recorded in the document; not enforced structurally. Per-property authority (which principal may set an individual field, enforced by validateWrite) is a separate attribute on each property that inherits the model-level authority when omitted."
+      },
+      "property.authority": {
+        "type": "enum",
+        "required": false,
+        "options": [
+          "client",
+          "internal",
+          "external"
+        ],
+        "description": "Per-property authority: the principal permitted to set this field's value. Omitted properties inherit the model-level authority (which itself defaults to internal). Enforced at runtime by validateWrite(data, model, writer)."
+      },
+      "ttl": {
+        "type": "string",
+        "required": false,
+        "pattern": "^[1-9][0-9]*[smhdMy]$",
+        "description": "Retention duration as integer + unit: s (seconds), m (minutes), h (hours), d (days), M (months), y (years). An omitted ttl is lifecycle-manager-determined (persistent by default) and is not modelled in DRef."
+      },
+      "count": {
+        "type": "range",
+        "required": false,
+        "description": "Inclusive instance-count range { min, max }. Either bound optional; min defaults to 0 when omitted; absent means unbounded."
+      },
+      "mapsFrom": {
+        "type": "array",
+        "required": false,
+        "description": "Incoming mapping definitions describing how foreign payloads can be mapped onto this model."
+      },
+      "properties": {
+        "type": "array",
+        "required": true,
+        "description": "The model's properties with their types, rules, and metadata.",
+        "property.attributes": {
+          "name": {
+            "type": "string",
+            "required": true,
+            "description": "Property identifier on the model."
+          },
+          "type": {
+            "type": "string",
+            "required": true,
+            "description": "Builtin field type (String, Number, Boolean, Date, DateTime, Time; see fieldTypes) or a domain field type declared under defaults.fields, which expands to its resolved builtin plus list flag and rules."
+          },
+          "required": {
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Whether the property must be present on an instance."
+          },
+          "key": {
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Part of the model's composite natural key."
+          },
+          "list": {
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Whether the property is a list of its declared type."
+          },
+          "authority": {
+            "type": "enum",
+            "required": false,
+            "options": [
+              "client",
+              "internal",
+              "external"
+            ],
+            "description": "Principal permitted to set this property; omitted properties inherit the model-level authority (see model.attributes property.authority). Enforced by validateWrite."
+          },
+          "description": {
+            "type": "string",
+            "required": false,
+            "description": "Human-readable description."
+          },
+          "rules": {
+            "type": "array",
+            "required": false,
+            "description": "Validation rules per the rules catalog."
+          }
+        }
+      }
+    },
+    "consistency": {
+      "description": "Architectural classification is derived, not declared. A model that declares a count range is a configuration; otherwise a model whose every property carries the immutable rule is a value (an append-only/event-style model is simply a value with a key plus all-immutable properties); anything else is an entity, which must declare at least one property with key: true. The entity rule is mirrored by validateModel in the TypeScript and Java reference implementations.",
+      "rules": [
+        "configuration: the model declares a count range (typically { max: 1 }); the value of the range itself (count attribute) is the only declaration allowed.",
+        "value: every property carries the immutable rule; a key is optional (a value with a key captures append-only/event intent).",
+        "entity: at least one property must be declared key: true."
+      ]
+    }
+  },
+  "fieldTypes": {
+    "primitives": [
+      "String",
+      "Number",
+      "Boolean",
+      "Date",
+      "DateTime",
+      "Time"
+    ]
+  },
+  "rules": {
+    "$ref": "https://regl.dev/catalog.json",
+    "note": "All value-level validation rules (STRING, NUMBER, LIST, BOOLEAN, TEMPORAL) are defined by Regl and published at the referenced catalog URL. DRef references Regl normatively for validation. Only domain-governance metadata is defined below.",
+    "parameterReferences": {
+      "description": "Cross-field parameter references: any parameterized rule with a scalar parameter (string, number or boolean — not enum, range or text) may take a '$fieldName' string instead of a literal value. During instance validation the reference is resolved against the named sibling property's value in the same model; when that property is unset in the instance (absent, null or empty string) the rule is skipped. Model validation rejects references that are empty, target an unknown property, target the constrained property itself, or target a property whose field type is incompatible with the rule's parameter (a number-parameter rule needs a Number sibling, a string-parameter rule a String sibling). String literals beginning with '$' are therefore always interpreted as references, and standalone single-property validation (no instance context) skips reference rules.",
+      "example": {
+        "name": "endDate",
+        "type": "Number",
+        "rules": [
+          {
+            "type": "greaterThan",
+            "param": "$startDate"
+          }
+        ]
+      }
+    },
+    "MODEL": {
+      "count": {
+        "type": "range",
+        "requiresParameter": true,
+        "description": "Inclusive bounds on total instances in system",
+        "example": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      "ttl": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Data lifecycle retention duration before expiration",
+        "example": "30d"
+      },
+      "authority": {
+        "type": "enum",
+        "options": [
+          "client",
+          "internal",
+          "external"
+        ],
+        "requiresParameter": true,
+        "description": "Model-level authorship: originating source of truth for the record (defaults to internal when omitted)",
+        "example": "internal"
+      },
+      "property.authority": {
+        "type": "enum",
+        "options": [
+          "client",
+          "internal",
+          "external"
+        ],
+        "requiresParameter": true,
+        "description": "Per-property authorship: which principal may set an individual field (validateWrite); omitted properties inherit the model-level authority",
+        "example": "internal"
+      }
+    }
+  },
+  "severity": {
+    "default": "error",
+    "options": [
+      "error",
+      "warning"
+    ],
+    "description": "Every rule evaluation produces an issue at a severity level. By default rules report failures as blocking errors. A rule instance may set \"warnOnly\": true to demote its failures to warnings: warn-only issues are reported on the validation result and never fail validation.",
+    "severity": { "type": "string", "enum": ["error", "warn"], "description": "Rule severity: error means blocking (default), warn means non-blocking warning." }
+  },
+  "mappings": {
+    "definition": {
+      "description": "A Mapping Definition describes how a foreign payload can be mapped onto this model. It is embedded inside the model's 'mapsFrom' array. It contains only the mapping information: which incoming fields to read, which target properties to write, and an optional transform chain per field. Validating the incoming object against its own model document is the caller's responsibility and is not part of the mapping.",
+      "attributes": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "description": "Source model name as presented by the provider, e.g. 'Stripe PaymentIntent'."
+        },
+        "provider": {
+          "type": "string",
+          "required": false,
+          "description": "Origin system, e.g. 'Stripe'."
+        },
+        "version": {
+          "type": "string",
+          "required": false,
+          "description": "Semantic version of the source model or its API."
+        },
+        "description": {
+          "type": "string",
+          "required": false,
+          "description": "Short description of what is being mapped."
+        },
+        "fields": {
+          "type": "array",
+          "required": true,
+          "description": "Field mappings. A bare string is a 1:1 copy onto a same-named target property. An object requires `from` — a source field, or an array of source fields whose present values feed the transform chain (`to` is then required) — and may rename the target with `to` (defaults to `from`) and reshape the value with a transform chain."
+        }
+      }
+    },
+    "field": {
+      "description": "One field of a Mapping Definition.",
+      "string": "1:1 copy: the bare string is the source field, read and written onto a same-named target property without transformation.",
+      "object": {
+        "from": {
+          "type": "string or string[]",
+          "required": true,
+          "description": "Source field in the incoming payload, or an array of source fields: the transform chain then starts from the array of their present values in declared order (absent/null sources are skipped; the value is null when none is present)."
+        },
+        "to": {
+          "type": "string",
+          "required": false,
+          "description": "Target property name; defaults to `from` (1:1 copy) when omitted, and is required when `from` is an array."
+        },
+        "transform": {
+          "type": "array",
+          "required": false,
+          "description": "Chain of transformation functions applied left to right. Bare strings stand for parameterless transforms; objects are { type, param }."
+        }
+      }
+    },
+    "runtime": {
+      "description": "The mapper is pure: for each field it reads the source property (or, for an array `from`, assembles the array of present source values), runs the transform chain left to right, and writes the result to the target property. It performs no validation of the incoming object — validating it against its own model document is the caller's responsibility. The mapper is aware of the domain it is importing into: a formatDate step is parameterized only by its SOURCE format ('unix' or a dref token pattern), and the output format is resolved from the domain's defaults.formats for that field type, else the ISO standard; named 'iso8601' outputs that value kind's ISO pattern, while 'epoch'/'epochMillis' output whole-number Unix seconds or milliseconds. Custom transforms resolve at runtime (Java: Function<Object,Object> lambda; TypeScript: resolver callback)."
+    }
+  },
+  "transformations": {
+    "STRING": {
+      "lowerCase": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Lowercases the string"
+      },
+      "upperCase": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Uppercases the string"
+      },
+      "trim": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Strips leading and trailing whitespace"
+      },
+      "prefix": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Prepends the parameter to the value",
+        "example": "sub_"
+      },
+      "suffix": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Appends the parameter to the value",
+        "example": "@acme.com"
+      },
+      "stripPrefix": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Removes the leading occurrence of the parameter when present",
+        "example": "pi_"
+      },
+      "stripSuffix": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Removes the trailing occurrence of the parameter when present",
+        "example": ".json"
+      },
+      "replace": {
+        "type": "object",
+        "requiresParameter": true,
+        "description": "Replaces all occurrences: { pattern, replacement }",
+        "example": {
+          "pattern": "-",
+          "replacement": "_"
+        }
+      },
+      "substring": {
+        "type": "object",
+        "requiresParameter": true,
+        "description": "Extracts a range: { start, end? }",
+        "example": {
+          "start": 0,
+          "end": 8
+        }
+      },
+      "join": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Joins the array of a multi-field 'from' into a string separated by the parameter; null/undefined entries are skipped",
+        "example": " "
+      }
+    },
+    "NUMBER": {
+      "multiply": {
+        "type": "number",
+        "requiresParameter": true,
+        "description": "Multiplies the number by the parameter",
+        "example": 100
+      },
+      "divide": {
+        "type": "number",
+        "requiresParameter": true,
+        "description": "Divides the number by the parameter",
+        "example": 100
+      },
+      "abs": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Absolute value"
+      },
+      "round": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Rounds to the nearest integer"
+      },
+      "roundTo": {
+        "type": "integer",
+        "requiresParameter": true,
+        "description": "Rounds to the given number of decimals",
+        "example": 2
+      }
+    },
+    "COERCION": {
+      "toNumber": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Coerces to a number when possible"
+      },
+      "toString": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Coerces to a string"
+      },
+      "toBoolean": {
+        "type": "flag",
+        "requiresParameter": false,
+        "description": "Coerces to a boolean (true/1/yes, false/0/no)"
+      }
+    },
+    "TEMPORAL": {
+      "formatDate": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Formats a date/time value into the target model's format. The parameter is the SOURCE format: 'unix' (epoch seconds or milliseconds) or a dref token pattern to parse a string from; blank treats numbers as unix and strings as ISO. The output format is resolved from the domain's defaults.formats for that field type, else the ISO standard; named 'iso8601' outputs that value kind's ISO pattern, while 'epoch'/'epochMillis' output whole-number Unix seconds or milliseconds.",
+        "example": "unix"
+      }
+    },
+    "COMMON": {
+      "default": {
+        "type": "any",
+        "requiresParameter": true,
+        "description": "Returns the parameter when the value is null or blank",
+        "example": "unknown"
+      },
+      "constant": {
+        "type": "any",
+        "requiresParameter": true,
+        "description": "Always returns the parameter, ignoring the source value",
+        "example": "legacy-import"
+      },
+      "custom": {
+        "type": "string",
+        "requiresParameter": true,
+        "description": "Free-text reference resolved at runtime (Java: Function<Object,Object> lambda; TypeScript: resolver callback)",
+        "example": "com.acme.slug"
+      }
+    }
+  }
+}

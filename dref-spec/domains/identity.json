@@ -1,0 +1,479 @@
+{
+  "$schema": "https://dref.dev/schemas/v1/domain.json",
+  "name": "Identity & Access",
+  "version": "1.0.0",
+  "description": "Authentication and authorization primitives: users, sessions, API keys, refresh tokens, and roles.",
+  "defaults": {
+    "formats": {
+      "date": "YYYY-MM-DD",
+      "time": "HH:mm:ss",
+      "dateTime": "YYYY-MM-DDTHH:mm:ssZ"
+    },
+    "fields": {
+      "emailAddress": {
+        "type": "String",
+        "rules": [
+          {
+            "type": "email"
+          },
+          {
+            "type": "lowercase"
+          },
+          {
+            "type": "trimmed"
+          }
+        ]
+      },
+      "handle": {
+        "type": "String",
+        "rules": [
+          {
+            "type": "minLength",
+            "param": 3
+          },
+          {
+            "type": "maxLength",
+            "param": 32
+          },
+          {
+            "type": "lowercase"
+          },
+          {
+            "type": "pattern",
+            "param": "^[a-z0-9_]+$"
+          }
+        ]
+      }
+    }
+  },
+  "scopes": [
+    {
+      "name": "core",
+      "description": "Core authentication and authorization models."
+    }
+  ],
+  "models": [
+    {
+      "name": "User",
+      "scope": "core",
+      "authority": "client",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "User identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "usr_"
+            }]
+        },
+        {
+          "name": "username",
+          "type": "handle",
+          "required": true,
+          "description": "Unique login handle."
+        },
+        {
+          "name": "email",
+          "type": "emailAddress",
+          "required": true,
+          "description": "Primary contact email."
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": false,
+          "description": "Optional phone number for MFA and support.",
+          "rules": [
+            {
+              "type": "pattern",
+              "param": "^\\+?[0-9]{7,15}$"
+            }
+          ]
+        },
+        {
+          "name": "passwordHash",
+          "type": "String",
+          "required": true,
+          "authority": "internal",
+          "description": "Bcrypt hash of the password. Never exposed or mutated.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "minLength",
+              "param": 60
+            },
+            {
+              "type": "maxLength",
+              "param": 128
+            }]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "authority": "internal",
+          "description": "Whether the account is enabled."
+        },
+        {
+          "name": "emailVerified",
+          "type": "Boolean",
+          "required": false,
+          "authority": "internal",
+          "description": "Whether the email address was verified."
+        },
+        {
+          "name": "mfaEnabled",
+          "type": "Boolean",
+          "required": false,
+          "authority": "internal",
+          "description": "Whether multi-factor authentication is enabled."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Account creation timestamp."
+          
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "authority": "internal",
+          "description": "Last profile update timestamp."
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "scope": "core",
+      "authority": "internal",
+      "ttl": "7d",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Session identifier.",
+          "rules": [
+            {
+              "type": "uuid"
+            }]
+        },
+        {
+          "name": "userId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the authenticated user.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "usr_"
+            }
+          ]
+        },
+        {
+          "name": "token",
+          "type": "String",
+          "required": true,
+          "description": "Opaque session bearer token.",
+          "rules": [
+            {
+              "type": "uuid"
+            }]
+        },
+        {
+          "name": "userAgent",
+          "type": "String",
+          "required": false,
+          "description": "Client user-agent string.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 512
+            }
+          ]
+        },
+        {
+          "name": "ipAddress",
+          "type": "String",
+          "required": false,
+          "description": "Originating IP address (IPv4 or IPv6).",
+          "rules": [
+            {
+              "type": "trimmed"
+            },
+            {
+              "type": "maxLength",
+              "param": 45
+            }
+          ]
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Expiry timestamp; the session is invalid after this point."
+        },
+        {
+          "name": "isRevoked",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the session was explicitly revoked."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Session creation timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "ApiKey",
+      "scope": "core",
+      "authority": "internal",
+      "ttl": "30d",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "API key identifier.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "key_"
+            }]
+        },
+        {
+          "name": "ownerId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the owning user or service account.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "usr_"
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "description": "Human-friendly label for the key.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "maxLength",
+              "param": 100
+            }
+          ]
+        },
+        {
+          "name": "hash",
+          "type": "String",
+          "required": true,
+          "description": "SHA-256 hex digest of the key secret. The raw secret is never stored.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "length",
+              "param": 64
+            },
+            {
+              "type": "pattern",
+              "param": "^[a-f0-9]{64}$"
+            }]
+        },
+        {
+          "name": "scopes",
+          "type": "String",
+          "required": true,
+          "list": true,
+          "description": "Granted permission scopes.",
+          "rules": [
+            {
+              "type": "range",
+              "param": {
+                "min": 1,
+                "max": 20
+              }
+            },
+            {
+              "type": "unique"
+            }
+          ]
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the key can be used."
+        },
+        {
+          "name": "expiresAt",
+          "type": "Date",
+          "required": false,
+          "description": "Optional absolute expiry date."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Issued timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "RefreshToken",
+      "scope": "core",
+      "authority": "internal",
+      "ttl": "24h",
+      "properties": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Refresh token identifier.",
+          "rules": [
+            {
+              "type": "uuid"
+            }]
+        },
+        {
+          "name": "userId",
+          "type": "String",
+          "required": true,
+          "description": "Reference to the owning user.",
+          "rules": [
+            {
+              "type": "startsWith",
+              "param": "usr_"
+            }
+          ]
+        },
+        {
+          "name": "tokenHash",
+          "type": "String",
+          "required": true,
+          "description": "Hash of the refresh token secret.",
+          "rules": [
+            {
+              "type": "notEmpty"
+            }]
+        },
+        {
+          "name": "isRevoked",
+          "type": "Boolean",
+          "required": false,
+          "description": "Whether the token was rotated or revoked."
+        },
+        {
+          "name": "sessionId",
+          "type": "String",
+          "required": false,
+          "description": "Reference to the originating session.",
+          "rules": [
+            {
+              "type": "uuid"
+            }
+          ]
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Expiry timestamp for the token."
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Issued timestamp."
+          
+        }
+      ]
+    },
+    {
+      "name": "Role",
+      "scope": "core",
+      "authority": "internal",
+      "count": {
+        "min": 1,
+        "max": 200
+      },
+      "properties": [
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "key": true,
+          "description": "Role key (e.g. admin, support, billing).",
+          "rules": [
+            {
+              "type": "notEmpty"
+            },
+            {
+              "type": "pattern",
+              "param": "^[a-z][a-z0-9_]*$"
+            }]
+        },
+        {
+          "name": "permissions",
+          "type": "String",
+          "required": true,
+          "list": true,
+          "description": "Permission identifiers granted by this role.",
+          "rules": [
+            {
+              "type": "range",
+              "param": {
+                "min": 1,
+                "max": 100
+              }
+            },
+            {
+              "type": "unique"
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "Human-readable role description.",
+          "rules": [
+            {
+              "type": "maxLength",
+              "param": 255
+            }
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "Creation timestamp."
+          
+        }
+      ]
+    }
+  ]
+}
